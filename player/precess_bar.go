@@ -12,11 +12,8 @@ import (
 type ProgressBar struct {
 	totalTime   time.Duration
 	currentTime time.Duration
-	barLength   int // 这个变量现在主要用来存储一个默认值，或者可以移除
 }
 
-// NewProgressBar 构造并返回一个 ProgressBar 的指针
-// 注意：这里不再需要 barLength 参数，因为我们每次都会动态获取
 func NewProgressBar(total time.Duration) *ProgressBar {
 	return &ProgressBar{
 		totalTime: total,
@@ -50,17 +47,17 @@ func (pb *ProgressBar) getCurrentBar() string {
 
 	// 构建进度条字符串
 	bar := "  "
-	bar += "\x1b[0m" // 重置所有颜色
-	bar += fmt.Sprintf("%02d:%02d ", currentMinute, currentSecond)
+	bar += "\x1b[0m"                                               // 重置所有颜色
+	bar += fmt.Sprintf("%02d:%02d ", currentMinute, currentSecond) // 显示当前时间
 
-	// *** 使用动态计算出的 currentBarLength ***
+	// 计算已播放的长度
 	filledLength := int(percentage / 100 * float64(currentBarLength))
 
 	for i := 0; i < currentBarLength; i++ {
 		if i < filledLength {
-			bar += "\x1b[34m█" // 蓝色已填充部分
+			bar += "\x1b[34m█" // 蓝色已播放部分
 		} else {
-			bar += "\x1b[30;1m█" // 深灰色未填充部分
+			bar += "\x1b[30;1m█" // 深灰色未播放部分
 		}
 	}
 
