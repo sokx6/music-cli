@@ -84,6 +84,9 @@ func ParseLine(line string) (lyricLine, error) {
 		if err != nil {
 			return lyricLine, err
 		}
+		if strings.TrimSpace(word.Text) == "" {
+			continue
+		}
 		if i == 0 {
 			lyricLine.Time = word.Time
 		}
