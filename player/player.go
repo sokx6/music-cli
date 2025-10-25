@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/dhowden/tag"
@@ -13,6 +14,8 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
 )
+
+var printMu sync.Mutex
 
 type Player struct {
 	streamer beep.StreamSeekCloser
@@ -41,12 +44,9 @@ func (p *Player) Init() error {
 	switch filepath.Ext(p.path) {
 	case ".mp3":
 		streamer, format, err := mp3.Decode(f)
-		fmt.Println("MP3 player initialized.")
 		if err != nil {
 			return err
 		}
-		fmt.Printf("MP3 format: %+v\n", format)
-		fmt.Printf("MP3 streamer: %+v\n", streamer)
 		p.streamer = streamer
 		p.format = format
 	case ".flac":
@@ -73,14 +73,12 @@ func (p *Player) Init() error {
 func (p *Player) LoadLyric() {
 	file, err := os.Open(p.path)
 	if err != nil {
-		fmt.Println("Failed to open file:", err)
 		return
 	}
 	defer file.Close()
 
 	meta, err := tag.ReadFrom(file)
 	if err != nil {
-		fmt.Println("Failed to read metadata:", err)
 		return
 	}
 	lyricData := meta.Lyrics()
@@ -95,21 +93,21 @@ func (p *Player) Play() error {
 
 	done := make(chan bool)
 	speaker.Play(beep.Seq(p.streamer, beep.Callback(func() {
-		fmt.Println("Playback finished.")
 		done <- true
 	})))
-	fmt.Print(p.lyric.GetAllLyrics())
-	/* go p.pb.PrintBar() */
 	go p.printCurrentTest()
 	<-done
 	return nil
 }
 
 func (p *Player) printCurrentTest() {
-	currentSample := p.streamer.Position()
-	currentTime := time.Duration(currentSample) * time.Second / time.Duration(p.format.SampleRate)
-	currentLyricText := p.lyric.GetCurrentLyric(currentTime)
-	fmt.Printf("\r>>> %s (%v)", currentLyricText, currentTime)
+	fmt.Print("\x1b[?25l")
+	defer fmt.Print("\x1b[?25h")
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go p.pb.printBar(&wg)
+	go p.lyric.printLyric(&wg)
+	wg.Wait()
 }
 
 func (p *Player) Close() error {
