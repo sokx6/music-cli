@@ -7,9 +7,10 @@ import (
 )
 
 func main() {
-	fmt.Println("请输出音乐路路径：")
+	fmt.Print("请输入音乐路径：")
 	var path string
 	fmt.Scanln(&path)
+	fmt.Print("\033[2J\033[H")
 	player := player.NewPlayer(path)
 	if err := player.Init(); err != nil {
 		log.Fatal(err)
