@@ -178,31 +178,63 @@ func (l *Lyric) getCurrentLyric(currentTime time.Duration) (int, LyricLine) {
 }
 
 func (l *Lyric) printCurrentLyric(currentTime time.Duration) {
-	var lastLine lyricLine
-	var nextLine lyricLine
+	var lastOriginalLine lyricLine
+	var currentOriginalLine lyricLine
+	var nextOriginalLine lyricLine
+	var lastTranslatedLine lyricLine
+	var currentTranslatedLine lyricLine
+	var nextTranslatedLine lyricLine
+
 	lIndex, currentLine := l.getCurrentLyric(currentTime)
-	wIndex, _ := getCurrentWord(currentLine.OriginalLine, currentTime) //记得，不用word变量，只用下标
+
+	// 当前行（可能为零值，如果 lIndex == -1）
+	if lIndex >= 0 {
+		currentOriginalLine = currentLine.OriginalLine
+		currentTranslatedLine = l.LyricLines[lIndex].TranslatedLine
+	}
+
 	if lIndex-1 >= 0 {
-		lastLine = l.LyricLines[lIndex-1].OriginalLine
+		lastOriginalLine = l.LyricLines[lIndex-1].OriginalLine
+		lastTranslatedLine = l.LyricLines[lIndex-1].TranslatedLine
 	}
 	if lIndex+1 < len(l.LyricLines) {
-		nextLine = l.LyricLines[lIndex+1].OriginalLine
+		nextOriginalLine = l.LyricLines[lIndex+1].OriginalLine
+		nextTranslatedLine = l.LyricLines[lIndex+1].TranslatedLine
 	}
+
+	// 使用当前原文计算当前字索引（如果没有当前原文，getCurrentWord 会返回 -1）
+	wIndex, _ := getCurrentWord(currentOriginalLine, currentTime)
+
 	printMu.Lock()
 	defer printMu.Unlock()
 	fmt.Print("\033[4;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center(lastLine.Text))
-	fmt.Print("\033[6;1H")
+	fmt.Print(utils.Center(lastOriginalLine.Text))
+
+	fmt.Print("\033[5;1H")
 	fmt.Print("\033[2K")
-	plain := "➣ " + l.getWordTextPlain(currentLine.OriginalLine, wIndex)
-	colored := "\x1b[34m➣ " + l.getWordText(currentLine.OriginalLine, wIndex)
+	fmt.Print(utils.Center(lastTranslatedLine.Text))
+
+	fmt.Print("\033[7;1H")
+	fmt.Print("\033[2K")
+	plain := "➣ " + l.getWordTextPlain(currentOriginalLine, wIndex)
+	colored := "\x1b[34m➣ " + l.getWordText(currentOriginalLine, wIndex)
 	centered := utils.Center(plain)
 	lineToPrint := strings.Replace(centered, plain, colored, 1)
 	fmt.Print(lineToPrint)
+
 	fmt.Print("\033[8;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center(nextLine.Text))
+	// 这里应打印当前行的翻译（之前错误地打印了 lastTranslatedLine）
+	fmt.Print(utils.Center(currentTranslatedLine.Text))
+
+	fmt.Print("\033[10;1H")
+	fmt.Print("\033[2K")
+	fmt.Print(utils.Center(nextOriginalLine.Text))
+
+	fmt.Print("\033[11;1H")
+	fmt.Print("\033[2K")
+	fmt.Print(utils.Center(nextTranslatedLine.Text))
 }
 
 func getCurrentWord(lyricLine lyricLine, currentTime time.Duration) (int, Word) {
