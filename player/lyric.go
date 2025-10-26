@@ -207,6 +207,15 @@ func (l *Lyric) printCurrentLyric(currentTime time.Duration) {
 
 	printMu.Lock()
 	defer printMu.Unlock()
+
+	fmt.Print("\033[2;1H")
+	fmt.Print("\033[2K")
+	fmt.Print(utils.Center("\033[40;30m======防闪烁======\033[0m"))
+
+	fmt.Print("\033[3;1H")
+	fmt.Print("\033[2K")
+	fmt.Print(utils.Center("\033[40;30m======防闪烁======\033[0m"))
+
 	fmt.Print("\033[4;1H")
 	fmt.Print("\033[2K")
 	fmt.Print(utils.Center(lastOriginalLine.Text))
