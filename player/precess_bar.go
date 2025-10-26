@@ -53,7 +53,7 @@ func (pb *ProgressBar) getCurrentBar() string {
 	// 计算已播放的长度
 	filledLength := int(percentage / 100 * float64(currentBarLength))
 
-	for i := 0; i < currentBarLength; i++ {
+	for i := 0; i < currentBarLength-1; i++ {
 		if i < filledLength {
 			bar += "\x1b[34m█" // 蓝色已播放部分
 		} else {
