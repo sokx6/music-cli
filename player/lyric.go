@@ -39,26 +39,45 @@ func NewLyric(lines []LyricLine) *Lyric {
 }
 
 func (l *Lyric) ParseLyric(rawLyrics string) {
-	currentLine := lyricLine{}
-	lastLine := lyricLine{}
-	for _, line := range strings.Split(rawLyrics, "\n") {
+	hasLast := false
+	var last lyricLine
 
+	for _, line := range strings.Split(rawLyrics, "\n") {
 		lyricLine, err := ParseLine(line)
 		if err != nil {
 			continue
 		}
-		// 保存上一次的行，然后更新 currentLine
-		lastLine = currentLine
-		currentLine = lyricLine
-		if currentLine.Time == lastLine.Time {
-			l.LyricLines = append(l.LyricLines, LyricLine{
-				OriginalLine:   lastLine,
-				TranslatedLine: currentLine,
-			})
+
+		if !hasLast {
+			// 保存第一行，等待可能的同时间戳的翻译行
+			last = lyricLine
+			hasLast = true
+			continue
 		}
 
+		// 如果时间相同，视为原文+翻译配对
+		if lyricLine.Time == last.Time {
+			l.LyricLines = append(l.LyricLines, LyricLine{
+				OriginalLine:   last,
+				TranslatedLine: lyricLine,
+			})
+			hasLast = false
+		} else {
+			// 否则把上一次单独作为原文行保存，当前行作为下一次的 last
+			l.LyricLines = append(l.LyricLines, LyricLine{
+				OriginalLine: last,
+			})
+			last = lyricLine
+			hasLast = true
+		}
 	}
 
+	// 循环结束后，如果还有未配对的最后一行，作为单独原文行加入
+	if hasLast {
+		l.LyricLines = append(l.LyricLines, LyricLine{
+			OriginalLine: last,
+		})
+	}
 }
 
 func ParseLine(line string) (lyricLine, error) {
