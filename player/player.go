@@ -22,14 +22,14 @@ type Player struct {
 	format   beep.Format
 	path     string
 	file     *os.File
-	pb       *ProgressBar
-	lyric    *Lyric
+	pb       *progressBar
+	lyric    *lyrics
 }
 
 func NewPlayer(path string) *Player {
 	return &Player{
 		path:  path,
-		lyric: NewLyric(nil),
+		lyric: newLyrics(nil),
 	}
 }
 
@@ -39,7 +39,7 @@ func (p *Player) Init() error {
 		return err
 	}
 	p.file = f
-	p.lyric = NewLyric(nil)
+	p.lyric = newLyrics(nil)
 	p.LoadLyric()
 	switch filepath.Ext(p.path) {
 	case ".mp3":
@@ -82,31 +82,31 @@ func (p *Player) LoadLyric() {
 		return
 	}
 	lyricData := meta.Lyrics()
-	p.lyric.ParseLyric(lyricData)
+	p.lyric.parse(lyricData)
 }
 
 func (p *Player) Play() error {
 	speaker.Init(p.format.SampleRate, p.format.SampleRate.N(time.Second/10))
 
 	totalTime := time.Duration(p.streamer.Len()) * time.Second / time.Duration(p.format.SampleRate)
-	p.pb = NewProgressBar(totalTime)
+	p.pb = newProgressBar(totalTime)
 
 	done := make(chan bool)
 	speaker.Play(beep.Seq(p.streamer, beep.Callback(func() {
 		done <- true
 	})))
-	go p.printCurrentTest()
+	go p.displayLoop()
 	<-done
 	return nil
 }
 
-func (p *Player) printCurrentTest() {
+func (p *Player) displayLoop() {
 	fmt.Print("\x1b[?25l")
 	defer fmt.Print("\x1b[?25h")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go p.pb.printBar(&wg)
-	go p.lyric.printLyric(&wg, p)
+	go p.lyric.print(&wg, p)
 	wg.Wait()
 }
 

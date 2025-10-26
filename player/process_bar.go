@@ -9,18 +9,18 @@ import (
 	"golang.org/x/term"
 )
 
-type ProgressBar struct {
+type progressBar struct {
 	totalTime   time.Duration
 	currentTime time.Duration
 }
 
-func NewProgressBar(total time.Duration) *ProgressBar {
-	return &ProgressBar{
+func newProgressBar(total time.Duration) *progressBar {
+	return &progressBar{
 		totalTime: total,
 	}
 }
 
-func (pb *ProgressBar) getCurrentBar() string {
+func (pb *progressBar) getCurrentBar() string {
 	fd := int(os.Stdout.Fd())
 	width, _, err := term.GetSize(fd)
 	if err != nil {
@@ -65,7 +65,7 @@ func (pb *ProgressBar) getCurrentBar() string {
 	return bar
 }
 
-func (pb *ProgressBar) printBar(wg *sync.WaitGroup) {
+func (pb *progressBar) printBar(wg *sync.WaitGroup) {
 	defer wg.Done()
 	start := time.Now()
 	ticker := time.NewTicker(time.Millisecond * 100)
