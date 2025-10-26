@@ -106,7 +106,7 @@ func (p *Player) printCurrentTest() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go p.pb.printBar(&wg)
-	go p.lyric.printLyric(&wg)
+	go p.lyric.printLyric(&wg, p)
 	wg.Wait()
 }
 
@@ -120,4 +120,11 @@ func (p *Player) Close() error {
 		p.file = nil
 	}
 	return nil
+}
+
+func (p *Player) getCurrentTime() time.Duration {
+	if p.streamer != nil {
+		return time.Duration(p.streamer.Position()) * time.Second / time.Duration(p.format.SampleRate)
+	}
+	return 0
 }

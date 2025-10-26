@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"music-cli/utils"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,7 +47,7 @@ func (l *Lyric) ParseLyric(rawLyrics string) {
 		if err != nil {
 			continue
 		}
-		lastLine = currentLine
+		// 保存上一次的行，然后更新 currentLine
 		lastLine = currentLine
 		currentLine = lyricLine
 		if currentLine.Time == lastLine.Time {
@@ -106,10 +107,17 @@ func parseWord(wordInfo []string) (Word, error) {
 	if err != nil {
 		return Word{}, err
 	}
-	ms, err := time.ParseDuration(wordInfo[3] + "ms")
+	// 处理小数部分：如果是两位（如 "34"），表示 340ms；如果三位则直接是 ms
+	msStr := wordInfo[3]
+	msInt, err := strconv.Atoi(msStr)
 	if err != nil {
 		return Word{}, err
 	}
+	if len(msStr) == 2 {
+		msInt *= 10
+	}
+	ms := time.Duration(msInt) * time.Millisecond
+
 	return Word{
 		Time: min + sec + ms,
 		Text: wordInfo[4],
@@ -120,36 +128,117 @@ func (l *Lyric) GetAllLyrics() []LyricLine {
 	return l.LyricLines
 }
 
-func (l *Lyric) printLyric(wg *sync.WaitGroup) {
+func (l *Lyric) printLyric(wg *sync.WaitGroup, player *Player) {
 	defer wg.Done()
-	start := time.Now()
-	var lastLyric string
-	var currentLyric string
-	var nextLyric string
-	for i, ly := range l.LyricLines {
-		currentLyric = ly.OriginalLine.Text
-		if i < len(l.LyricLines)-1 {
-			nextLyric = l.LyricLines[i+1].OriginalLine.Text
-		}
-		if i > 0 {
-			lastLyric = l.LyricLines[i-1].OriginalLine.Text
-		}
-		target := start.Add(ly.OriginalLine.Time)
-		now := time.Now()
 
-		timer := time.NewTimer(target.Sub(now))
-		<-timer.C
-
-		printMu.Lock()
-		fmt.Print("\033[4;1f")
-		fmt.Print("\033[2K")
-		fmt.Print(utils.Center(lastLyric))
-		fmt.Print("\033[6;1f")
-		fmt.Print("\033[2K")
-		fmt.Print(utils.Center("➣ " + currentLyric))
-		fmt.Print("\033[8;1f")
-		fmt.Print("\033[2K")
-		fmt.Print(utils.Center(nextLyric))
-		printMu.Unlock()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for range ticker.C {
+		currentTime := player.getCurrentTime()
+		l.printCurrentLyric(currentTime)
 	}
+}
+
+func (l *Lyric) getCurrentLyric(currentTime time.Duration) (int, LyricLine) {
+	n := len(l.LyricLines)
+	if n == 0 {
+		return -1, LyricLine{}
+	}
+	// 在第一行之前
+	if currentTime < l.LyricLines[0].OriginalLine.Time {
+		return -1, LyricLine{}
+	}
+	// 在某行与下一行之间，返回当前行索引
+	for i := 0; i < n-1; i++ {
+		if currentTime >= l.LyricLines[i].OriginalLine.Time && currentTime < l.LyricLines[i+1].OriginalLine.Time {
+			return i, l.LyricLines[i]
+		}
+	}
+	// 在最后一行及之后
+	return n - 1, l.LyricLines[n-1]
+}
+
+func (l *Lyric) printCurrentLyric(currentTime time.Duration) {
+	var lastLine lyricLine
+	var nextLine lyricLine
+	lIndex, currentLine := l.getCurrentLyric(currentTime)
+	wIndex, _ := getCurrentWord(currentLine.OriginalLine, currentTime) //记得，不用word变量，只用下标
+	if lIndex-1 >= 0 {
+		lastLine = l.LyricLines[lIndex-1].OriginalLine
+	}
+	if lIndex+1 < len(l.LyricLines) {
+		nextLine = l.LyricLines[lIndex+1].OriginalLine
+	}
+	printMu.Lock()
+	defer printMu.Unlock()
+	fmt.Print("\033[4;1H")
+	fmt.Print("\033[2K")
+	fmt.Print(utils.Center(lastLine.Text))
+	fmt.Print("\033[6;1H")
+	fmt.Print("\033[2K")
+	plain := "➣ " + l.getWordTextPlain(currentLine.OriginalLine, wIndex)
+	colored := "\x1b[34m➣ " + l.getWordText(currentLine.OriginalLine, wIndex)
+	centered := utils.Center(plain)
+	lineToPrint := strings.Replace(centered, plain, colored, 1)
+	fmt.Print(lineToPrint)
+	fmt.Print("\033[8;1H")
+	fmt.Print("\033[2K")
+	fmt.Print(utils.Center(nextLine.Text))
+}
+
+func getCurrentWord(lyricLine lyricLine, currentTime time.Duration) (int, Word) {
+	if len(lyricLine.Words) == 0 {
+		return -1, Word{}
+	}
+	for i, w := range lyricLine.Words {
+		if currentTime < w.Time {
+			// 如果还没到第一个字，返回 -1 表示没有已播放的字
+			if i == 0 {
+				return -1, Word{}
+			}
+			return i - 1, lyricLine.Words[i-1]
+		}
+	}
+	// 已经超过最后一个字，返回最后一个字
+	last := len(lyricLine.Words) - 1
+	return last, lyricLine.Words[last]
+}
+
+func (l *Lyric) getWordText(line lyricLine, index int) string {
+	if index < 0 || index >= len(line.Words) {
+		return "\x1b[0m"
+	}
+	playedWords := "\x1b[34m"
+	unPlayedWords := "\x1b[30;1m█"
+	for i := 0; i <= index; i++ {
+		playedWords += line.Words[i].Text
+	}
+	for i := index + 1; i < len(line.Words); i++ {
+		unPlayedWords += line.Words[i].Text
+	}
+	// 末尾重置颜色，避免影响居中和后续输出
+	return playedWords + unPlayedWords + "\x1b[0m"
+}
+
+func (l *Lyric) getWordTextPlain(line lyricLine, index int) string {
+	// 返回不带 ANSI 颜色码的可视文本，用于计算居中
+	if len(line.Words) == 0 {
+		return line.Text
+	}
+	if index < 0 {
+		return line.Text
+	}
+	if index >= len(line.Words) {
+		// 全部为已播放状态
+		index = len(line.Words) - 1
+	}
+	played := "█"
+	unPlayed := "█"
+	for i := 0; i <= index; i++ {
+		played += line.Words[i].Text
+	}
+	for i := index + 1; i < len(line.Words); i++ {
+		unPlayed += line.Words[i].Text
+	}
+	return played + unPlayed
 }
