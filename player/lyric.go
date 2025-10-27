@@ -224,11 +224,7 @@ func (l *lyrics) printCurrentLyric(currentTime time.Duration) {
 
 	fmt.Print("\033[7;1H")
 	fmt.Print("\033[2K")
-	plain := "➣ " + l.getWordTextPlain(currentOriginalLine, wIndex)
-	colored := "\x1b[34m➣ " + l.getWordText(currentOriginalLine, wIndex)
-	centered := utils.Center(plain)
-	lineToPrint := strings.Replace(centered, plain, colored, 1)
-	fmt.Print(lineToPrint)
+	fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentOriginalLine, wIndex)))
 
 	fmt.Print("\033[8;1H")
 	fmt.Print("\033[2K")
@@ -276,27 +272,4 @@ func (l *lyrics) getWordText(line lyricLine, index int) string {
 	}
 	// 末尾重置颜色，避免影响居中和后续输出
 	return playedWords + unPlayedWords + "\x1b[0m"
-}
-
-func (l *lyrics) getWordTextPlain(line lyricLine, index int) string {
-	// 返回不带 ANSI 颜色码的可视文本，用于计算居中
-	if len(line.Words) == 0 {
-		return line.Text
-	}
-	if index < 0 {
-		return line.Text
-	}
-	if index >= len(line.Words) {
-		// 全部为已播放状态
-		index = len(line.Words) - 1
-	}
-	played := "█"
-	unPlayed := "█"
-	for i := 0; i <= index; i++ {
-		played += line.Words[i].Text
-	}
-	for i := index + 1; i < len(line.Words); i++ {
-		unPlayed += line.Words[i].Text
-	}
-	return played + unPlayed
 }
