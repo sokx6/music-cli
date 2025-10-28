@@ -148,15 +148,49 @@ func parseWord(wordInfo []string) (word, error) {
 func (l *lyrics) print(wg *sync.WaitGroup, player *Player) {
 	defer wg.Done()
 
-	ticker := time.NewTicker(50 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
+	var lastLine lyricPair
+	var currentLine lyricPair
+	var nextLine lyricPair
+	lastWIndex := -1
+	wIndex := -1
 	for {
 		select {
 		case <-player.done:
 			return
 		case <-ticker.C:
 			currentTime := player.getCurrentTime()
-			l.printCurrentLyric(currentTime)
+			lastWIndex = wIndex
+			wIndex, _ = getCurrentWord(currentLine.Original, currentTime)
+			lIndex, _ := l.getCurrentLyric(currentTime)
+			if lIndex >= 0 {
+				currentLine = l.pairs[lIndex]
+			}
+
+			if lIndex-1 >= 0 {
+				lastLine = l.pairs[lIndex-1]
+			}
+			if lIndex+1 < len(l.pairs) {
+				nextLine = l.pairs[lIndex+1]
+			} else if lIndex+1 == len(l.pairs) {
+				nextLine = lyricPair{
+					Original:   lyricLine{Text: ""},
+					Translated: lyricLine{Text: ""},
+				}
+			}
+			if lIndex != l.currentIndex {
+				l.printLastLyric(lastLine)
+				l.printCurrentLyric(currentLine, wIndex, true, false)
+				l.printNextLyric(nextLine)
+				l.currentIndex = lIndex
+			} else {
+				if wIndex != lastWIndex {
+					l.printCurrentLyric(currentLine, wIndex, false, true)
+				} else {
+					l.printCurrentLyric(currentLine, wIndex, false, false)
+				}
+			}
 		}
 	}
 }
@@ -180,69 +214,54 @@ func (l *lyrics) getCurrentLyric(currentTime time.Duration) (int, lyricPair) {
 	return n - 1, l.pairs[n-1]
 }
 
-func (l *lyrics) printCurrentLyric(currentTime time.Duration) {
-	var lastOriginalLine lyricLine
-	var currentOriginalLine lyricLine
-	var nextOriginalLine lyricLine
-	var lastTranslatedLine lyricLine
-	var currentTranslatedLine lyricLine
-	var nextTranslatedLine lyricLine
-
-	lIndex, currentLine := l.getCurrentLyric(currentTime)
-
-	// 当前行（可能为零值，如果 lIndex == -1）
-	if lIndex >= 0 {
-		currentOriginalLine = currentLine.Original
-		currentTranslatedLine = l.pairs[lIndex].Translated
-	}
-
-	if lIndex-1 >= 0 {
-		lastOriginalLine = l.pairs[lIndex-1].Original
-		lastTranslatedLine = l.pairs[lIndex-1].Translated
-	}
-	if lIndex+1 < len(l.pairs) {
-		nextOriginalLine = l.pairs[lIndex+1].Original
-		nextTranslatedLine = l.pairs[lIndex+1].Translated
-	}
-
-	// 使用当前原文计算当前字索引（如果没有当前原文，getCurrentWord 会返回 -1）
-	wIndex, _ := getCurrentWord(currentOriginalLine, currentTime)
+func (l *lyrics) printCurrentLyric(currentLine lyricPair, wIndex int, lineChange bool, wordChange bool) {
 
 	printMu.Lock()
 	defer printMu.Unlock()
-
-	fmt.Print("\033[2;1H")
+	fmt.Print("\033[6;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center("\033[40;30m======防闪烁======\033[0m"))
-
-	fmt.Print("\033[3;1H")
+	fmt.Print(utils.Center("\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001"))
+	if lineChange {
+		fmt.Print("\033[7;1H")
+		fmt.Print("\033[2K")
+		fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentLine.Original, wIndex)))
+		fmt.Print("\033[8;1H")
+		fmt.Print("\033[2K")
+		fmt.Print(utils.Center(currentLine.Translated.Text))
+	} else if wordChange {
+		fmt.Print("\033[7;1H")
+		fmt.Print("\033[2K")
+		fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentLine.Original, wIndex)))
+	}
+	fmt.Print("\033[9;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center("\033[40;30m======防闪烁======\033[0m"))
+	fmt.Print(utils.Center("\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B"))
+}
+
+func (l *lyrics) printLastLyric(lastLyricLine lyricPair) {
+	printMu.Lock()
+	defer printMu.Unlock()
 
 	fmt.Print("\033[4;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center(lastOriginalLine.Text))
+	fmt.Print(utils.Center(lastLyricLine.Original.Text))
 
 	fmt.Print("\033[5;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center(lastTranslatedLine.Text))
+	fmt.Print(utils.Center(lastLyricLine.Translated.Text))
+}
 
-	fmt.Print("\033[7;1H")
-	fmt.Print("\033[2K")
-	fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentOriginalLine, wIndex)))
-
-	fmt.Print("\033[8;1H")
-	fmt.Print("\033[2K")
-	// 这里应打印当前行的翻译（之前错误地打印了 lastTranslatedLine）
-	fmt.Print(utils.Center(currentTranslatedLine.Text))
+func (l *lyrics) printNextLyric(nextLyricLine lyricPair) {
+	printMu.Lock()
+	defer printMu.Unlock()
 
 	fmt.Print("\033[10;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center(nextOriginalLine.Text))
+	fmt.Print(utils.Center(nextLyricLine.Original.Text))
 
 	fmt.Print("\033[11;1H")
 	fmt.Print("\033[2K")
-	fmt.Print(utils.Center(nextTranslatedLine.Text))
+	fmt.Print(utils.Center(nextLyricLine.Translated.Text))
 }
 
 func getCurrentWord(lyricLine lyricLine, currentTime time.Duration) (int, word) {
