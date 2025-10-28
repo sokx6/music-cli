@@ -43,7 +43,14 @@ func newLyrics(pairs []lyricPair) *lyrics {
 func (l *lyrics) parse(rawLyrics string) {
 	hasLast := false
 	var last lyricLine
-
+	if rawLyrics == "" {
+		pair := lyricPair{
+			Original:   lyricLine{Time: time.Duration(0), Text: "暂无歌词", Words: []word{{Time: time.Duration(0), Text: "暂无歌词"}}},
+			Translated: lyricLine{Time: time.Duration(0), Text: "", Words: []word{}},
+		}
+		l.pairs = append(l.pairs, pair)
+		return
+	}
 	for _, line := range strings.Split(rawLyrics, "\n") {
 		parsed, err := parseLine(line)
 		if err != nil {
@@ -151,8 +158,10 @@ func (l *lyrics) print(wg *sync.WaitGroup, player *Player) {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 	var lastLine lyricPair
-	var currentLine lyricPair
 	var nextLine lyricPair
+	var lIndex int
+	var currentLine lyricPair
+	var once sync.Once
 	lastWIndex := -1
 	wIndex := -1
 	for {
@@ -162,12 +171,17 @@ func (l *lyrics) print(wg *sync.WaitGroup, player *Player) {
 		case <-ticker.C:
 			currentTime := player.getCurrentTime()
 			lastWIndex = wIndex
+			lIndex, currentLine = l.getCurrentLyric(currentTime)
 			wIndex, _ = getCurrentWord(currentLine.Original, currentTime)
-			lIndex, _ := l.getCurrentLyric(currentTime)
-			if lIndex >= 0 {
-				currentLine = l.pairs[lIndex]
+			if lIndex == -1 && len(l.pairs) > 0 {
+				once.Do(func() {
+					l.printCurrentLyric(lyricPair{
+						Original:   lyricLine{Text: ""},
+						Translated: lyricLine{Text: ""},
+					}, -1, true, false)
+					l.printNextLyric(l.pairs[0])
+				})
 			}
-
 			if lIndex-1 >= 0 {
 				lastLine = l.pairs[lIndex-1]
 			}
