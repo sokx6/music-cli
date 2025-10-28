@@ -78,7 +78,7 @@ func (pb *progressBar) printBar(wg *sync.WaitGroup, player *Player) {
 		case <-ticker.C:
 			pb.currentTime = player.getCurrentTime()
 			printMu.Lock()
-			fmt.Printf("\033[1;1f")
+			fmt.Printf("\033[11;1f")
 			fmt.Printf("\033[K %s", pb.getCurrentBar())
 			printMu.Unlock()
 		}

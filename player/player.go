@@ -137,6 +137,7 @@ func (p *Player) TogglePause() {
 
 func (p *Player) displayLoop() {
 	fmt.Print("\x1b[?25l")
+	fmt.Print("\033[2J\033[H")
 	defer fmt.Print("\x1b[?25h")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
