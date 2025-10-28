@@ -150,9 +150,14 @@ func (l *lyrics) print(wg *sync.WaitGroup, player *Player) {
 
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
-	for range ticker.C {
-		currentTime := player.getCurrentTime()
-		l.printCurrentLyric(currentTime)
+	for {
+		select {
+		case <-player.done:
+			return
+		case <-ticker.C:
+			currentTime := player.getCurrentTime()
+			l.printCurrentLyric(currentTime)
+		}
 	}
 }
 
