@@ -65,17 +65,22 @@ func (pb *progressBar) getCurrentBar() string {
 	return bar
 }
 
-func (pb *progressBar) printBar(wg *sync.WaitGroup) {
+func (pb *progressBar) printBar(wg *sync.WaitGroup, player *Player) {
 	defer wg.Done()
-	start := time.Now()
+
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		pb.currentTime = time.Since(start)
-		printMu.Lock()
-		fmt.Printf("\033[1;1f")
-		fmt.Printf("\033[K %s", pb.getCurrentBar())
-		printMu.Unlock()
+	for {
+		select {
+		case <-player.done:
+			return
+		case <-ticker.C:
+			pb.currentTime = player.getCurrentTime()
+			printMu.Lock()
+			fmt.Printf("\033[1;1f")
+			fmt.Printf("\033[K %s", pb.getCurrentBar())
+			printMu.Unlock()
+		}
 	}
 }
