@@ -240,6 +240,9 @@ func (l *lyrics) printCurrentLyric(currentLine lyricPair, wIndex int, lineChange
 	defer printMu.Unlock()
 
 	if lineChange {
+		fmt.Print("\033[4;1H")
+		fmt.Print("\033[2K")
+		fmt.Print(utils.Center("\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001"))
 		fmt.Print("\033[5;1H")
 		fmt.Print("\033[2K")
 		fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentLine.Original, wIndex)))
