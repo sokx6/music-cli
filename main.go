@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	player.GetPathAndPlay()
+	player.PageController()
 }
