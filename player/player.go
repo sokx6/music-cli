@@ -3,7 +3,6 @@ package player
 import (
 	"bufio"
 	"fmt"
-	"music-cli/utils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
-	"golang.org/x/term"
 )
 
 var printMu sync.Mutex
@@ -87,6 +85,9 @@ func (p *Player) Init() error {
 	p.ctrl = &beep.Ctrl{Streamer: p.streamer}
 	p.isPaused = false
 
+	p.done = make(chan struct{})
+	p.closeOnce = sync.Once{}
+
 	return nil
 }
 
@@ -106,27 +107,39 @@ func (p *Player) LoadLyric() {
 }
 
 func (p *Player) Play() {
-	if p.format.SampleRate == 0 {
+	p.mu.Lock()
+	format := p.format
+	streamer := p.streamer
+	ctrl := p.ctrl
+	done := p.done
+	p.mu.Unlock()
+
+	if format.SampleRate == 0 || streamer == nil || ctrl == nil || done == nil {
 		return
 	}
-	speaker.Init(p.format.SampleRate, p.format.SampleRate.N(time.Second/10))
 
-	totalTime := time.Duration(p.streamer.Len()) * time.Second / time.Duration(p.format.SampleRate)
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	totalTime := time.Duration(streamer.Len()) * time.Second / time.Duration(format.SampleRate)
 	p.pb = newProgressBar(totalTime)
 
-	speaker.Play(beep.Seq(p.ctrl, beep.Callback(func() {
-		p.closeOnce.Do(func() { close(p.done) })
+	speaker.Play(beep.Seq(ctrl, beep.Callback(func() {
+		p.closeOnce.Do(func() { close(done) })
 	})))
 
 	go p.displayLoop()
 
-	<-p.done
+	<-done
 	p.Close()
 }
 
 func (p *Player) TogglePause() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	if p.ctrl == nil {
+		return
+	}
 
 	speaker.Lock()
 	p.ctrl.Paused = !p.isPaused
@@ -147,6 +160,9 @@ func (p *Player) displayLoop() {
 }
 
 func (p *Player) Close() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.streamer != nil {
 		_ = p.streamer.Close()
 		p.streamer = nil
@@ -156,7 +172,9 @@ func (p *Player) Close() {
 		p.file = nil
 	}
 	p.closeOnce.Do(func() {
-		close(p.done)
+		if p.done != nil {
+			close(p.done)
+		}
 	})
 }
 
@@ -167,66 +185,23 @@ func (p *Player) getCurrentTime() time.Duration {
 	return 0
 }
 
-func handleInput(p *Player) {
-	for {
-		select {
-		case <-p.done:
-			return
-		default:
-			buffer := make([]byte, 1)
-			n, err := os.Stdin.Read(buffer)
-			if err != nil || n == 0 {
-				time.Sleep(10 * time.Millisecond)
-				continue
-			}
-			switch buffer[0] {
-			case ' ':
-				p.TogglePause()
-			case 'q', 'Q':
-				p.Close()
-				return
-			}
-		}
+func GetPathAndPlay() {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print("请输入音乐路径：")
+	scanner.Scan()
+	path := scanner.Text()
+	if path == "q" || path == "Q" {
+		os.Exit(0)
 	}
+	path = strings.Trim(path, `"`)
+	handleMenuInput(path, 1)
 }
 
-func GetPathAndPlay() {
-	for {
-		fmt.Print("\033[2J\033[H")
-		scanner := bufio.NewScanner(os.Stdin)
-		fmt.Print("请输入音乐路径：")
-		scanner.Scan()
-		path := scanner.Text()
-		if path == "q" || path == "Q" {
-			os.Exit(0)
-		}
-		path = strings.Trim(path, `"`)
-		pathList, err := utils.GetPaths(path)
-		if err != nil {
-			fmt.Println("路径错误，请重新输入")
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-		if err != nil {
-			continue
-		}
-
-		for _, p := range pathList {
-			player := NewPlayer(p)
-			if err := player.Init(); err != nil {
-				continue
-			}
-			go handleInput(player)
-			player.Play()
-			player.Close()
-		}
-
-		term.Restore(int(os.Stdin.Fd()), oldState)
-
-		fmt.Print("\033[2J\033[H")
-		fmt.Print("\n播放完成，按回车继续...")
-		fmt.Scanln()
+func getPlayerList(paths []string) []*Player {
+	var players []*Player
+	for _, path := range paths {
+		player := NewPlayer(path)
+		players = append(players, player)
 	}
+	return players
 }
