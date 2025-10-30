@@ -142,7 +142,7 @@ func handleMenu(root string, page int) error {
 	var index int
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
-	input = strings.TrimSpace(scanner.Text())
+	input = strings.Trim(input, " \t\n\r'\"")
 	if input == "" {
 		os.Exit(0)
 	}
@@ -161,7 +161,7 @@ func handleMenu(root string, page int) error {
 		if needReturn || err != nil {
 			return err
 		}
-		input = strings.TrimSpace(input)
+		input = strings.Trim(input, " \t\n\r'\"")
 		index, err = strconv.Atoi(input)
 	}
 	if index <= len(files) && index > 0 {
@@ -183,7 +183,7 @@ func handleHomeInput() {
 	fmt.Print("请输入音乐路径(回车或q键直接退出)：")
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
-	path := scanner.Text()
+	path := strings.Trim(scanner.Text(), " \t\n\r'\"")
 	if path == "q" || path == "Q" || path == "" {
 		os.Exit(0)
 	}
@@ -191,7 +191,7 @@ func handleHomeInput() {
 	for err != nil {
 		fmt.Print("请输入音乐路径(回车或q键直接退出)：")
 		scanner.Scan()
-		path = scanner.Text()
+		path = strings.Trim(scanner.Text(), " \t\n\r'\"")
 		if path == "q" || path == "Q" || path == "" {
 			os.Exit(0)
 		}
@@ -202,7 +202,7 @@ func handleHomeInput() {
 		handlePlayInput(filepath.Dir(path), 0, 1, []*Player{player})
 		return
 	}
-	path = strings.Trim(path, `"`)
+	path = strings.Trim(path, " \t\n\r'\"")
 	pageChannel <- pageChange{signal: toMenuSignal, root: path, page: 1}
 }
 

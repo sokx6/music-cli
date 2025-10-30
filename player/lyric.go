@@ -113,7 +113,7 @@ func parseLine(line string) (lyricLine, error) {
 		if err != nil {
 			return ll, err
 		}
-		if strings.TrimSpace(w.Text) == "" {
+		if strings.Trim(w.Text, " \t\n\r'\"") == "" {
 			continue
 		}
 		if i == 0 {
