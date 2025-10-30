@@ -1,11 +1,11 @@
 package player
 
 import (
-	"bufio"
 	"fmt"
+	"math/rand"
+	"music-cli/utils"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -20,15 +20,16 @@ import (
 var printMu sync.Mutex
 
 type Player struct {
+	id int
 	// 核心播放组件
 	streamer beep.StreamSeekCloser
 	format   beep.Format
 	ctrl     *beep.Ctrl // 新增：用于控制暂停/继续
 
 	// 元数据
-	path string
-	file *os.File
-
+	path     string
+	file     *os.File
+	metadata tag.Metadata
 	// UI组件
 	pb    *progressBar
 	lyric *lyrics
@@ -40,11 +41,12 @@ type Player struct {
 	closeOnce sync.Once
 }
 
-func NewPlayer(path string) *Player {
+func NewPlayer(path string, id int) *Player {
 	return &Player{
 		path:  path,
 		lyric: newLyrics(nil),
 		done:  make(chan struct{}),
+		id:    id,
 	}
 }
 
@@ -102,6 +104,7 @@ func (p *Player) LoadLyric() {
 	if err != nil {
 		return
 	}
+	p.metadata = meta
 	lyricData := meta.Lyrics()
 	p.lyric.parse(lyricData)
 }
@@ -152,6 +155,7 @@ func (p *Player) displayLoop() {
 	fmt.Print("\x1b[?25l")
 	fmt.Print("\033[2J\033[H")
 	defer fmt.Print("\x1b[?25h")
+	fmt.Print(utils.Center(fmt.Sprintf("[%d]: %s - %s", p.id, p.metadata.Artist(), p.metadata.Title())))
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go p.pb.printBar(&wg, p)
@@ -185,23 +189,24 @@ func (p *Player) getCurrentTime() time.Duration {
 	return 0
 }
 
-func GetPathAndPlay() {
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Print("请输入音乐路径：")
-	scanner.Scan()
-	path := scanner.Text()
-	if path == "q" || path == "Q" {
-		os.Exit(0)
-	}
-	path = strings.Trim(path, `"`)
-	handleMenuInput(path, 1)
-}
-
 func getPlayerList(paths []string) []*Player {
 	var players []*Player
-	for _, path := range paths {
-		player := NewPlayer(path)
+	for i, path := range paths {
+		player := NewPlayer(path, i+1)
 		players = append(players, player)
+	}
+	return players
+}
+func randomPlayer(players []*Player) []*Player {
+	if len(players) == 0 {
+		return nil
+	}
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(players), func(i, j int) {
+		players[i], players[j] = players[j], players[i]
+	})
+	for i, player := range players {
+		player.id = i + 1
 	}
 	return players
 }
