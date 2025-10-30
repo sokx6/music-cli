@@ -94,7 +94,7 @@ func PrintPathInfo(root string, page int) {
 		fileEnd = len(files)
 	}
 	for i := fileStart; i < fileEnd; i++ {
-		fmt.Printf(" %d. %s\n", i+1, files[i])
+		fmt.Printf(" %d. %s\n", i+1, filepath.Base(files[i]))
 	}
 
 	// 打印目录（如果在当前页范围内）
@@ -112,7 +112,7 @@ func PrintPathInfo(root string, page int) {
 			dirEnd = len(dirs)
 		}
 		for j := dirStart; j < dirEnd; j++ {
-			fmt.Printf(" %d. %s\n", len(files)+j+1, dirs[j])
+			fmt.Printf(" %d. %s\n", len(files)+j+1, filepath.Base(dirs[j]))
 		}
 	}
 
