@@ -63,7 +63,7 @@ func PrintPathInfo(root string, page int) {
 	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
 	fmt.Printf("当前路径: %s\n", root)
 	fmt.Printf("页码: %d\n", page)
-	pageSize := height - 6
+	pageSize := height - 7
 	if pageSize <= 0 {
 		pageSize = 1
 	}
