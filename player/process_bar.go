@@ -79,7 +79,7 @@ func (pb *progressBar) printBar(wg *sync.WaitGroup, player *Player) {
 			pb.currentTime = player.getCurrentTime()
 			printMu.Lock()
 			fmt.Printf("\033[12;1f")
-			fmt.Printf("\033[K %s", pb.getCurrentBar())
+			fmt.Printf("\033[2K %s", pb.getCurrentBar())
 			printMu.Unlock()
 		}
 	}

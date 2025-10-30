@@ -152,7 +152,7 @@ func parseWord(wordInfo []string) (word, error) {
 	}, nil
 }
 
-func (l *lyrics) print(wg *sync.WaitGroup, player *Player) {
+func (l *lyrics) print(wg *sync.WaitGroup, player *Player, clearChan chan struct{}) {
 	defer wg.Done()
 
 	ticker := time.NewTicker(10 * time.Millisecond)
@@ -169,6 +169,10 @@ func (l *lyrics) print(wg *sync.WaitGroup, player *Player) {
 		select {
 		case <-player.done:
 			return
+		case <-clearChan:
+			l.printLastLyric(lastLine)
+			l.printCurrentLyric(currentLine, wIndex, true, false)
+			l.printNextLyric(nextLine)
 		case <-ticker.C:
 			currentTime := player.getCurrentTime()
 			lastWIndex = wIndex

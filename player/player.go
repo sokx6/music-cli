@@ -15,9 +15,59 @@ import (
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
+	"golang.org/x/term"
 )
 
 var printMu sync.Mutex
+
+type defaultMetadata struct {
+}
+
+func (d *defaultMetadata) Format() tag.Format {
+	return tag.UnknownFormat
+}
+func (d *defaultMetadata) Title() string {
+	return "Unknown Title"
+}
+func (d *defaultMetadata) Artist() string {
+	return "Unknown Artist"
+}
+func (d *defaultMetadata) Album() string {
+	return "Unknown Album"
+}
+func (d *defaultMetadata) Year() int {
+	return 0
+}
+func (d *defaultMetadata) Genre() string {
+	return "Unknown Genre"
+}
+func (d *defaultMetadata) AlbumArtist() string {
+	return "Unknown Album Artist"
+}
+func (d *defaultMetadata) Composer() string {
+	return "Unknown Composer"
+}
+func (d *defaultMetadata) FileType() tag.FileType {
+	return tag.UnknownFileType
+}
+func (d *defaultMetadata) Lyrics() string {
+	return ""
+}
+func (d *defaultMetadata) Track() (int, int) {
+	return 0, 0
+}
+func (d *defaultMetadata) Disc() (int, int) {
+	return 0, 0
+}
+func (d *defaultMetadata) Picture() *tag.Picture {
+	return nil
+}
+func (d *defaultMetadata) Raw() map[string]interface{} {
+	return nil
+}
+func (d *defaultMetadata) Comment() string {
+	return ""
+}
 
 type Player struct {
 	id int
@@ -102,6 +152,11 @@ func (p *Player) LoadLyric() {
 
 	meta, err := tag.ReadFrom(file)
 	if err != nil {
+		p.metadata = &defaultMetadata{}
+		return
+	}
+	if meta == nil {
+		p.metadata = &defaultMetadata{}
 		return
 	}
 	p.metadata = meta
@@ -157,9 +212,11 @@ func (p *Player) displayLoop() {
 	defer fmt.Print("\x1b[?25h")
 	fmt.Print(utils.Center(fmt.Sprintf("[%d]: %s - %s", p.id, p.metadata.Artist(), p.metadata.Title())))
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(3)
+	var clearChan = make(chan struct{})
+	go clearScreen(&wg, p, clearChan)
 	go p.pb.printBar(&wg, p)
-	go p.lyric.print(&wg, p)
+	go p.lyric.print(&wg, p, clearChan)
 	wg.Wait()
 }
 
@@ -209,4 +266,31 @@ func randomPlayer(players []*Player) []*Player {
 		player.id = i + 1
 	}
 	return players
+}
+
+func clearScreen(wg *sync.WaitGroup, player *Player, clearChan chan struct{}) {
+	defer wg.Done()
+
+	ticker := time.NewTicker(time.Millisecond * 1)
+	defer ticker.Stop()
+	currentWidth, currentHeight, _ := term.GetSize(int(os.Stdout.Fd()))
+	var lastWidth, lastHeight int
+
+	for {
+		select {
+		case <-player.done:
+			return
+		case <-ticker.C:
+
+			lastWidth, lastHeight = currentWidth, currentHeight
+			currentWidth, currentHeight, _ = term.GetSize(int(os.Stdout.Fd()))
+			if currentWidth != lastWidth || currentHeight != lastHeight {
+				player.mu.Lock()
+				fmt.Print("\033[2J\033[H")
+				clearChan <- struct{}{}
+				player.mu.Unlock()
+			}
+
+		}
+	}
 }

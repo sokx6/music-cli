@@ -199,7 +199,7 @@ func handleHomeInput() {
 	}
 	if !info.IsDir() {
 		player := NewPlayer(path, 1)
-		handlePlayInput(filepath.Dir(path), 1, 1, []*Player{player})
+		handlePlayInput(filepath.Dir(path), 0, 1, []*Player{player})
 		return
 	}
 	path = strings.Trim(path, `"`)
