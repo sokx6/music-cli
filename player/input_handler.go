@@ -140,7 +140,7 @@ func handleMenu(root string, page int) error {
 		handlePlayInput(root, 0, page, []*Player{player})
 		return nil
 	} else if index <= len(files)+len(dir) {
-		pageChannel <- pageChange{signal: toMenuSignal, root: dir[index-len(files)-1]}
+		pageChannel <- pageChange{signal: toMenuSignal, root: dir[index-len(files)-1], page: 1}
 		return nil
 	}
 	pageChannel <- pageChange{signal: toMenuSignal, root: root}
@@ -150,18 +150,18 @@ func handleMenu(root string, page int) error {
 func handleHomeInput() {
 	fmt.Print("\033[2J\033[H")
 	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Print("请输入音乐路径：")
+	fmt.Print("请输入音乐路径(回车或q键直接退出)：")
 	scanner.Scan()
 	path := scanner.Text()
-	if path == "q" || path == "Q" {
+	if path == "q" || path == "Q" || path == "" {
 		os.Exit(0)
 	}
 	info, err := os.Lstat(path)
 	for err != nil {
-		fmt.Print("请输入音乐路径：")
+		fmt.Print("请输入音乐路径(回车或q键直接退出)：")
 		scanner.Scan()
 		path = scanner.Text()
-		if path == "q" || path == "Q" {
+		if path == "q" || path == "Q" || path == "" {
 			os.Exit(0)
 		}
 		info, err = os.Lstat(path)
