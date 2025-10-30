@@ -100,7 +100,7 @@ func handlePlayInput(root string, start int, page int, plist []*Player) {
 	}
 }
 
-func handleMenuInput(root string, page int) error {
+func handleMenu(root string, page int) error {
 	fmt.Print("\033[2J\033[H")
 	files, dir, err := utils.ListDir(root)
 	if len(files) == 0 && len(dir) == 0 {
@@ -117,59 +117,26 @@ func handleMenuInput(root string, page int) error {
 	fmt.Print("请输入音乐或目录编号：")
 	var input string
 	var index int
-	fmt.Scan(&input)
-	switch input {
-	case "q", "Q":
-		pageChannel <- pageChange{signal: toHomeSignal, root: root}
-		return nil
-	case "d", "D":
-		pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page + 1}
-		return nil
-	case "a", "A":
-		if page <= 1 {
-			pageChannel <- pageChange{signal: toMenuSignal, root: root, page: 1}
-		} else {
-			pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page - 1}
-		}
-		return nil
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	input = strings.TrimSpace(scanner.Text())
+	needReturn, err := handleMenuInput(root, page, input, files)
+	if needReturn || err != nil {
+		return err
 	}
-	for index, err = strconv.Atoi(input); err != nil || index < -1; {
+	for index, err = strconv.Atoi(input); err != nil || index < -2; {
 		fmt.Print("输入无效，请重新输入编号：")
-		fmt.Scan(&input)
-		switch input {
-		case "q", "Q":
-			pageChannel <- pageChange{signal: toHomeSignal, root: root}
-			return nil
-		case "d", "D":
-			pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page + 1}
-			return nil
-		case "a", "A":
-			if page <= 1 {
-				pageChannel <- pageChange{signal: toMenuSignal, root: root, page: 1}
-			} else {
-				pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page - 1}
-			}
-			return nil
-		}
-		input := strings.TrimSpace(input)
-		index, err = strconv.Atoi(input)
-	}
-
-	if index == -1 {
-		pathStrList, err := utils.WalkDir(root)
-		if err != nil {
-			fmt.Println("错误:", err)
+		scanner.Scan()
+		input = scanner.Text()
+		needReturn, err = handleMenuInput(root, page, input, files)
+		if needReturn || err != nil {
 			return err
 		}
-		players := getPlayerList(pathStrList)
-		handlePlayInput(root, 0, page, players)
-		return nil
-	} else if index == 0 {
-		players := getPlayerList(files)
-		handlePlayInput(root, 0, page, players)
-		return nil
-	} else if index <= len(files) {
-		player := NewPlayer(files[index-1])
+		input = strings.TrimSpace(input)
+		index, err = strconv.Atoi(input)
+	}
+	if index <= len(files) && index > 0 {
+		player := NewPlayer(files[index-1], 1)
 		handlePlayInput(root, 0, page, []*Player{player})
 		return nil
 	} else if index <= len(files)+len(dir) {
@@ -190,8 +157,17 @@ func handleHomeInput() {
 		os.Exit(0)
 	}
 	info, err := os.Lstat(path)
-	if !info.IsDir() && err == nil {
-		player := NewPlayer(path)
+	for err != nil {
+		fmt.Print("请输入音乐路径：")
+		scanner.Scan()
+		path = scanner.Text()
+		if path == "q" || path == "Q" {
+			os.Exit(0)
+		}
+		info, err = os.Lstat(path)
+	}
+	if !info.IsDir() {
+		player := NewPlayer(path, 1)
 		handlePlayInput(filepath.Dir(path), 1, 1, []*Player{player})
 		return
 	}
@@ -204,11 +180,70 @@ func PageController() {
 	for {
 		switch pc := <-pageChannel; pc.signal {
 		case toMenuSignal:
-			go handleMenuInput(pc.root, pc.page)
+			go handleMenu(pc.root, pc.page)
 		case toHomeSignal:
 			go handleHomeInput()
 		case exitSignal:
 			return
 		}
 	}
+}
+
+func handleMenuInput(root string, page int, input string, files []string) (bool, error) {
+	switch input {
+	case "q", "Q":
+		pageChannel <- pageChange{signal: toHomeSignal, root: root}
+		return true, nil
+	case "+":
+		pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page + 1}
+		return true, nil
+	case "-":
+		if page <= 1 {
+			pageChannel <- pageChange{signal: toMenuSignal, root: root, page: 1}
+		} else {
+			pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page - 1}
+		}
+		return true, nil
+	case "r", "R":
+		players := randomPlayer(getPlayerList(files))
+		var singlePlayerList []*Player
+		singlePlayerList = append(singlePlayerList, players[0])
+		handlePlayInput(root, 0, page, singlePlayerList)
+		return true, nil
+	case "a", "A":
+		pathStrList, err := utils.WalkDir(root)
+		if err != nil {
+			fmt.Println("错误:", err)
+			return true, err
+		}
+		players := getPlayerList(pathStrList)
+		handlePlayInput(root, 0, page, players)
+		return true, nil
+	case "ar", "aR":
+		pathStrList, err := utils.WalkDir(root)
+		if err != nil {
+			fmt.Println("错误:", err)
+			return true, err
+		}
+		players := randomPlayer(getPlayerList(pathStrList))
+		handlePlayInput(root, 0, page, players)
+		return true, nil
+	case "0r", "0R":
+		players := randomPlayer(getPlayerList(files))
+		handlePlayInput(root, 0, page, players)
+		return true, nil
+	case "0", "-0", "+0":
+		players := getPlayerList(files)
+		handlePlayInput(root, 0, page, players)
+		return true, nil
+	}
+	if input[:1] == "p" && len(input) > 1 {
+		page, err := strconv.Atoi(input[1:])
+		if err != nil || page < 1 {
+			return false, err
+		}
+		pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page}
+		return true, nil
+	}
+	return false, nil
 }
