@@ -143,6 +143,9 @@ func handleMenu(root string, page int) error {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	input = strings.TrimSpace(scanner.Text())
+	if input == "" {
+		os.Exit(0)
+	}
 	needReturn, err := handleMenuInput(root, page, input, files)
 	if needReturn || err != nil {
 		return err
@@ -151,6 +154,9 @@ func handleMenu(root string, page int) error {
 		fmt.Print("输入无效，请重新输入编号（q键回到主菜单）：")
 		scanner.Scan()
 		input = scanner.Text()
+		if input == "" {
+			os.Exit(0)
+		}
 		needReturn, err = handleMenuInput(root, page, input, files)
 		if needReturn || err != nil {
 			return err
