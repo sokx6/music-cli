@@ -170,11 +170,6 @@ func (l *lyrics) print(wg *sync.WaitGroup, player *Player) {
 		case <-player.done:
 			return
 		case <-ticker.C:
-			printMu.Lock()
-			fmt.Print("\033[1;1H")
-			fmt.Print("\033[2K")
-			fmt.Print("\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001")
-			printMu.Unlock()
 			currentTime := player.getCurrentTime()
 			lastWIndex = wIndex
 			lIndex, currentLine = l.getCurrentLyric(currentTime)
@@ -240,17 +235,17 @@ func (l *lyrics) printCurrentLyric(currentLine lyricPair, wIndex int, lineChange
 	defer printMu.Unlock()
 
 	if lineChange {
-		fmt.Print("\033[4;1H")
-		fmt.Print("\033[2K")
-		fmt.Print(utils.Center("\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001"))
 		fmt.Print("\033[5;1H")
 		fmt.Print("\033[2K")
-		fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentLine.Original, wIndex)))
+		fmt.Print(utils.Center("\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001\u2001"))
 		fmt.Print("\033[6;1H")
+		fmt.Print("\033[2K")
+		fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentLine.Original, wIndex)))
+		fmt.Print("\033[7;1H")
 		fmt.Print("\033[2K")
 		fmt.Print(utils.Center(currentLine.Translated.Text))
 	} else if wordChange {
-		fmt.Print("\033[5;1H")
+		fmt.Print("\033[6;1H")
 		fmt.Print("\033[2K")
 		fmt.Print(utils.Center("\x1b[34m➣ " + l.getWordText(currentLine.Original, wIndex)))
 	}
@@ -261,11 +256,11 @@ func (l *lyrics) printLastLyric(lastLyricLine lyricPair) {
 	printMu.Lock()
 	defer printMu.Unlock()
 
-	fmt.Print("\033[2;1H")
+	fmt.Print("\033[3;1H")
 	fmt.Print("\033[2K")
 	fmt.Print(utils.Center(lastLyricLine.Original.Text))
 
-	fmt.Print("\033[3;1H")
+	fmt.Print("\033[4;1H")
 	fmt.Print("\033[2K")
 	fmt.Print(utils.Center(lastLyricLine.Translated.Text))
 }
@@ -274,11 +269,11 @@ func (l *lyrics) printNextLyric(nextLyricLine lyricPair) {
 	printMu.Lock()
 	defer printMu.Unlock()
 
-	fmt.Print("\033[8;1H")
+	fmt.Print("\033[9;1H")
 	fmt.Print("\033[2K")
 	fmt.Print(utils.Center(nextLyricLine.Original.Text))
 
-	fmt.Print("\033[9;1H")
+	fmt.Print("\033[10;1H")
 	fmt.Print("\033[2K")
 	fmt.Print(utils.Center(nextLyricLine.Translated.Text))
 }
