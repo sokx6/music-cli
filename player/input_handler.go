@@ -18,6 +18,25 @@ const (
 	toMenuSignal = 1
 	toHomeSignal = 2
 )
+const welcomeMessage = `欢迎使用music-cli音乐播放器
+
+基本操作
+播放 / 暂停：空格 (Space)
+上一首： -
+下一首： +
+退出播放返回目录：q / Q
+
+菜单与浏览
+输入编号：播放对应音乐或进入目录
+下一页 / 上一页：输入 + / -
+跳转到指定页：pN（例如 p2）
+切换盘符：c:（c是一个字母）
+上一级目录：..
+播放当前页全部：0 / -0 / +0
+当前目录全部播放（递归）：a
+递归随机播放：ar
+随机播放当前页：0r
+随机播放当前页单首：r`
 
 type pageChange struct {
 	signal int
@@ -118,7 +137,7 @@ func handleMenu(root string, page int) error {
 		return err
 	}
 	utils.PrintPathInfo(root, page)
-	fmt.Print("请输入音乐或目录编号：")
+	fmt.Print("请输入音乐或目录编号（q键回到主菜单）：")
 	var input string
 	var index int
 	scanner := bufio.NewScanner(os.Stdin)
@@ -129,7 +148,7 @@ func handleMenu(root string, page int) error {
 		return err
 	}
 	for index, err = strconv.Atoi(input); err != nil || index < -2; {
-		fmt.Print("输入无效，请重新输入编号：")
+		fmt.Print("输入无效，请重新输入编号（q键回到主菜单）：")
 		scanner.Scan()
 		input = scanner.Text()
 		needReturn, err = handleMenuInput(root, page, input, files)
@@ -153,8 +172,10 @@ func handleMenu(root string, page int) error {
 
 func handleHomeInput() {
 	fmt.Print("\033[2J\033[H")
-	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Println(welcomeMessage)
+	fmt.Println()
 	fmt.Print("请输入音乐路径(回车或q键直接退出)：")
+	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	path := scanner.Text()
 	if path == "q" || path == "Q" || path == "" {
