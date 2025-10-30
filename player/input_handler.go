@@ -104,9 +104,13 @@ func handleMenu(root string, page int) error {
 	fmt.Print("\033[2J\033[H")
 	files, dir, err := utils.ListDir(root)
 	if len(files) == 0 && len(dir) == 0 {
-		fmt.Println("当前目录为空")
+		fmt.Print("当前目录为空")
 		time.Sleep(1 * time.Second)
-		pageChannel <- pageChange{signal: toHomeSignal}
+		if root == "/" || root == "\\" || len(filepath.Dir(root)) >= len(root) {
+			pageChannel <- pageChange{signal: toHomeSignal}
+			return nil
+		}
+		pageChannel <- pageChange{signal: toMenuSignal, root: filepath.Dir(root), page: 1}
 		return nil
 	}
 	if err != nil {
@@ -236,6 +240,13 @@ func handleMenuInput(root string, page int, input string, files []string) (bool,
 		players := getPlayerList(files)
 		handlePlayInput(root, 0, page, players)
 		return true, nil
+	case "..":
+		parentDir := filepath.Dir(root)
+		pageChannel <- pageChange{signal: toMenuSignal, root: parentDir, page: 1}
+		return true, nil
+	}
+	if input == "" {
+		return false, nil
 	}
 	if input[:1] == "p" && len(input) > 1 {
 		page, err := strconv.Atoi(input[1:])
@@ -243,6 +254,10 @@ func handleMenuInput(root string, page int, input string, files []string) (bool,
 			return false, err
 		}
 		pageChannel <- pageChange{signal: toMenuSignal, root: root, page: page}
+		return true, nil
+	}
+	if len(input) == 2 && input[1:2] == ":" {
+		pageChannel <- pageChange{signal: toMenuSignal, root: input + "\\", page: 1}
 		return true, nil
 	}
 	return false, nil
