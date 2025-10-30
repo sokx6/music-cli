@@ -69,14 +69,14 @@ func handlePlayInput(root string, start int, page int, plist []*Player) {
 			switch b {
 			case ' ':
 				currentPlayer.TogglePause()
-			case 'd', 'D':
+			case '+':
 				currentPlayer.Close()
 				currentIndex = (currentIndex + 1) % len(plist)
 				currentPlayer = plist[currentIndex]
 				currentPlayer.Init()
 				go currentPlayer.Play()
 				doneCh = currentPlayer.done
-			case 'w', 'W':
+			case '-':
 				fmt.Println("Previous track")
 				currentPlayer.Close()
 				currentIndex = (currentIndex - 1 + len(plist)) % len(plist)
