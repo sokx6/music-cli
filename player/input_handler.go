@@ -142,7 +142,7 @@ func handleMenu(root string, page int) error {
 	var index int
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
-	input = strings.Trim(input, " \t\n\r'\"")
+	input = strings.Trim(scanner.Text(), " \t\n\r'\"")
 	if input == "" {
 		os.Exit(0)
 	}
@@ -153,7 +153,7 @@ func handleMenu(root string, page int) error {
 	for index, err = strconv.Atoi(input); err != nil || index < -2; {
 		fmt.Print("输入无效，请重新输入编号（q键回到主菜单）：")
 		scanner.Scan()
-		input = scanner.Text()
+		input = strings.Trim(scanner.Text(), " \t\n\r'\"")
 		if input == "" {
 			os.Exit(0)
 		}
@@ -161,7 +161,6 @@ func handleMenu(root string, page int) error {
 		if needReturn || err != nil {
 			return err
 		}
-		input = strings.Trim(input, " \t\n\r'\"")
 		index, err = strconv.Atoi(input)
 	}
 	if index <= len(files) && index > 0 {
@@ -202,7 +201,6 @@ func handleHomeInput() {
 		handlePlayInput(filepath.Dir(path), 0, 1, []*Player{player})
 		return
 	}
-	path = strings.Trim(path, " \t\n\r'\"")
 	pageChannel <- pageChange{signal: toMenuSignal, root: path, page: 1}
 }
 
@@ -242,6 +240,7 @@ func handleMenuInput(root string, page int, input string, files []string) (bool,
 		handlePlayInput(root, 0, page, singlePlayerList)
 		return true, nil
 	case "a", "A":
+		fmt.Print("aaaaaaaaaaa")
 		pathStrList, err := utils.WalkDir(root)
 		if err != nil {
 			fmt.Println("错误:", err)
