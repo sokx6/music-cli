@@ -176,7 +176,7 @@ func (p *Player) Play() {
 		return
 	}
 
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second))
 
 	totalTime := time.Duration(streamer.Len()) * time.Second / time.Duration(format.SampleRate)
 	p.pb = newProgressBar(totalTime)
@@ -271,7 +271,7 @@ func randomPlayer(players []*Player) []*Player {
 func clearScreen(wg *sync.WaitGroup, player *Player, clearChan chan struct{}) {
 	defer wg.Done()
 
-	ticker := time.NewTicker(time.Millisecond * 1)
+	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 	currentWidth, currentHeight, _ := term.GetSize(int(os.Stdout.Fd()))
 	var lastWidth, lastHeight int
