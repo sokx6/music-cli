@@ -170,6 +170,7 @@ func (l *lyrics) print(wg *sync.WaitGroup, player *Player, clearChan chan struct
 		case <-player.done:
 			return
 		case <-clearChan:
+			fmt.Print(utils.Center(fmt.Sprintf("[%d]: %s - %s", player.id, player.metadata.Artist(), player.metadata.Title())))
 			l.printLastLyric(lastLine)
 			l.printCurrentLyric(currentLine, wIndex, true, false)
 			l.printNextLyric(nextLine)
