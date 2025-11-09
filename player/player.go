@@ -176,7 +176,7 @@ func (p *Player) Play() {
 		return
 	}
 
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second))
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second)/10)
 
 	totalTime := time.Duration(streamer.Len()) * time.Second / time.Duration(format.SampleRate)
 	p.pb = newProgressBar(totalTime)
@@ -285,10 +285,10 @@ func clearScreen(wg *sync.WaitGroup, player *Player, clearChan chan struct{}) {
 			lastWidth, lastHeight = currentWidth, currentHeight
 			currentWidth, currentHeight, _ = term.GetSize(int(os.Stdout.Fd()))
 			if currentWidth != lastWidth || currentHeight != lastHeight {
-				player.mu.Lock()
+				printMu.Lock()
 				fmt.Print("\033[2J\033[H")
 				clearChan <- struct{}{}
-				player.mu.Unlock()
+				printMu.Unlock()
 			}
 
 		}
