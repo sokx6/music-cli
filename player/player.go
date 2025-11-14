@@ -20,6 +20,10 @@ import (
 
 var printMu sync.Mutex
 
+/* defaultMetadata 提供了一个默认的元数据实现
+ * 这我只能说就是依托
+ * 很难想象我为什么会用这种方法
+ */
 type defaultMetadata struct {
 }
 
@@ -287,8 +291,8 @@ func clearScreen(wg *sync.WaitGroup, player *Player, clearChan chan struct{}) {
 			if currentWidth != lastWidth || currentHeight != lastHeight {
 				printMu.Lock()
 				fmt.Print("\033[2J\033[H")
-				clearChan <- struct{}{}
 				printMu.Unlock()
+				clearChan <- struct{}{}
 			}
 
 		}
